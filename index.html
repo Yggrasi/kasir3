@@ -1,0 +1,683 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <title>Kasir Pentol UMKM</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+      @media print {
+        body * {
+          visibility: hidden;
+        }
+        #print-receipt,
+        #print-receipt * {
+          visibility: visible;
+        }
+        #print-receipt {
+          position: absolute;
+          left: 0;
+          top: 0;
+          width: 100%;
+        }
+      }
+      /* Touch target optimizations for mobile */
+      .touch-btn {
+        min-height: 44px;
+        user-select: none;
+        -webkit-tap-highlight-color: transparent;
+      }
+    </style>
+  </head>
+  <body class="bg-amber-50 text-slate-800 font-sans min-h-screen flex flex-col">
+    <!-- Header -->
+    <header
+      class="bg-gradient-to-r from-red-600 to-amber-600 text-white p-3 shadow-md sticky top-0 z-30"
+    >
+      <div class="max-w-4xl mx-auto flex justify-between items-center">
+        <div class="flex items-center gap-2">
+          <div class="bg-white/20 p-2 rounded-xl">
+            <i data-lucide="store" class="w-6 h-6"></i>
+          </div>
+          <div>
+            <h1 class="font-bold text-lg leading-tight">Kasir Pentol UMKM</h1>
+            <p class="text-xs text-amber-100">Hitung Cepat & Praktis</p>
+          </div>
+        </div>
+        <button
+          onclick="toggleHistoryModal()"
+          class="bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition"
+        >
+          <i data-lucide="history" class="w-4 h-4"></i>
+          <span class="hidden sm:inline">Riwayat</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Content Layout -->
+    <main
+      class="flex-1 max-w-4xl w-full mx-auto p-2 sm:p-4 grid grid-cols-1 md:grid-cols-12 gap-4 pb-28 md:pb-6"
+    >
+      <!-- Left Column: Menu Items (7 cols on desktop) -->
+      <section class="md:col-span-7 space-y-4">
+        <!-- Quick Info Bar -->
+        <div
+          class="flex justify-between items-center bg-white p-3 rounded-xl border border-amber-200 shadow-sm text-xs text-slate-600"
+        >
+          <div class="flex items-center gap-1.5">
+            <i data-lucide="info" class="w-4 h-4 text-amber-600"></i>
+            <span
+              >Gunakan tombol <b>+1</b>, <b>+2</b>, <b>+5</b> untuk tambah
+              cepat.</span
+            >
+          </div>
+          <button
+            onclick="resetCart()"
+            class="text-red-600 hover:text-red-700 font-medium flex items-center gap-1"
+          >
+            <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i> Riset Pesanan
+          </button>
+        </div>
+
+        <!-- Menu Categories -->
+        <div id="menu-container" class="space-y-4">
+          <!-- Rendered dynamically via JS -->
+        </div>
+      </section>
+
+      <!-- Right Column: Cart / Summary (5 cols on desktop) -->
+      <section class="md:col-span-5">
+        <div
+          class="bg-white rounded-2xl border border-amber-200 shadow-lg p-4 sticky top-20 flex flex-col justify-between min-h-[400px]"
+        >
+          <div>
+            <div
+              class="flex justify-between items-center pb-3 border-b border-slate-100 mb-3"
+            >
+              <h2 class="font-bold text-slate-800 flex items-center gap-2">
+                <i
+                  data-lucide="shopping-cart"
+                  class="w-5 h-5 text-amber-600"
+                ></i>
+                Rincian Pesanan
+              </h2>
+              <span
+                id="total-items-badge"
+                class="bg-amber-100 text-amber-800 text-xs font-bold px-2.5 py-0.5 rounded-full"
+              >
+                0 porsi
+              </span>
+            </div>
+
+            <!-- Selected Items List -->
+            <div
+              id="cart-items-list"
+              class="space-y-2 max-h-56 overflow-y-auto pr-1"
+            >
+              <p class="text-center text-slate-400 text-sm py-8">
+                Belum ada item yang dipilih
+              </p>
+            </div>
+          </div>
+
+          <!-- Total Calculation Box -->
+          <div class="pt-4 border-t border-slate-100 mt-4 space-y-3">
+            <div class="bg-amber-50 p-3 rounded-xl border border-amber-200">
+              <div class="flex justify-between items-baseline">
+                <span class="text-slate-600 text-sm font-semibold"
+                  >Total Tagihan</span
+                >
+                <span id="grand-total" class="text-2xl font-black text-red-600"
+                  >Rp 0</span
+                >
+              </div>
+            </div>
+
+            <!-- Pembayaran Quick Section -->
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1"
+                >Uang Diterima (Rp):</label
+              >
+              <input
+                type="number"
+                id="cash-input"
+                placeholder="0"
+                oninput="calculateChange()"
+                class="w-full text-right text-lg font-bold p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:outline-none"
+              />
+
+              <!-- Quick Nominal Buttons -->
+              <div class="grid grid-cols-4 gap-1 mt-2 text-xs font-semibold">
+                <button
+                  onclick="setCash('PAS')"
+                  class="bg-slate-100 hover:bg-slate-200 p-1.5 rounded text-slate-700"
+                >
+                  Uang Pas
+                </button>
+                <button
+                  onclick="setCash(10000)"
+                  class="bg-slate-100 hover:bg-slate-200 p-1.5 rounded text-slate-700"
+                >
+                  10k
+                </button>
+                <button
+                  onclick="setCash(20000)"
+                  class="bg-slate-100 hover:bg-slate-200 p-1.5 rounded text-slate-700"
+                >
+                  20k
+                </button>
+                <button
+                  onclick="setCash(50000)"
+                  class="bg-slate-100 hover:bg-slate-200 p-1.5 rounded text-slate-700"
+                >
+                  50k
+                </button>
+              </div>
+            </div>
+
+            <!-- Kembalian Display -->
+            <div
+              class="flex justify-between items-center text-sm font-bold bg-slate-100 p-2.5 rounded-lg text-slate-700"
+            >
+              <span>Kembalian:</span>
+              <span
+                id="change-display"
+                class="text-lg text-emerald-600 font-extrabold"
+                >Rp 0</span
+              >
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="grid grid-cols-2 gap-2 pt-1">
+              <button
+                onclick="finishTransaction(true)"
+                class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-3 rounded-xl shadow transition flex items-center justify-center gap-1.5 text-sm touch-btn"
+              >
+                <i data-lucide="printer" class="w-4 h-4"></i> Cetak
+              </button>
+              <button
+                onclick="finishTransaction(false)"
+                class="bg-amber-600 hover:bg-amber-700 text-white font-bold py-2.5 px-3 rounded-xl shadow transition flex items-center justify-center gap-1.5 text-sm touch-btn"
+              >
+                <i data-lucide="check-circle" class="w-4 h-4"></i> Selesai
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Sticky Bottom Total Bar for Mobile View -->
+    <div
+      class="fixed bottom-0 left-0 right-0 bg-white border-t border-amber-200 p-3 shadow-2xl md:hidden z-20"
+    >
+      <div class="max-w-4xl mx-auto flex items-center justify-between gap-2">
+        <div>
+          <p
+            class="text-[10px] uppercase font-bold tracking-wider text-slate-400"
+          >
+            Total Pembayaran
+          </p>
+          <p id="mobile-grand-total" class="text-xl font-black text-red-600">
+            Rp 0
+          </p>
+        </div>
+        <div class="flex gap-2">
+          <button
+            onclick="resetCart()"
+            class="bg-red-100 text-red-700 p-2.5 rounded-xl font-bold text-xs touch-btn"
+          >
+            <i data-lucide="trash-2" class="w-5 h-5"></i>
+          </button>
+          <button
+            onclick="
+              window.scrollTo({
+                top: document.body.scrollHeight,
+                behavior: 'smooth',
+              })
+            "
+            class="bg-amber-600 text-white px-4 py-2.5 rounded-xl font-bold text-sm shadow flex items-center gap-1 touch-btn"
+          >
+            <span>Bayar</span>
+            <i data-lucide="chevron-up" class="w-4 h-4"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Riwayat Transaksi -->
+    <div
+      id="history-modal"
+      class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4"
+    >
+      <div
+        class="bg-white rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl flex flex-col max-h-[85vh]"
+      >
+        <div
+          class="bg-amber-600 text-white p-4 flex justify-between items-center"
+        >
+          <h3 class="font-bold text-lg flex items-center gap-2">
+            <i data-lucide="receipt" class="w-5 h-5"></i>
+            Riwayat Penjualan Hari Ini
+          </h3>
+          <button
+            onclick="toggleHistoryModal()"
+            class="text-white/80 hover:text-white"
+          >
+            <i data-lucide="x" class="w-6 h-6"></i>
+          </button>
+        </div>
+        <div
+          class="p-4 bg-amber-50 border-b border-amber-200 flex justify-between items-center"
+        >
+          <div>
+            <p class="text-xs text-slate-500">Total Omset Hari Ini</p>
+            <p id="daily-omset" class="text-xl font-black text-emerald-600">
+              Rp 0
+            </p>
+          </div>
+          <button
+            onclick="clearHistory()"
+            class="text-xs bg-red-100 text-red-600 hover:bg-red-200 px-3 py-1.5 rounded-lg font-bold"
+          >
+            Hapus Riwayat
+          </button>
+        </div>
+        <div id="history-list" class="p-4 overflow-y-auto space-y-3 flex-1">
+          <!-- Rendered History -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Printable Receipt Template -->
+    <div
+      id="print-receipt"
+      class="hidden p-4 font-mono text-xs max-w-[280px] mx-auto text-black"
+    >
+      <div class="text-center mb-3">
+        <h2 class="font-bold text-base">WARUNG PENTOL UMKM</h2>
+        <p class="text-[10px]">Struk Pembayaran</p>
+        <p id="receipt-date" class="text-[10px] mt-1"></p>
+      </div>
+      <div
+        class="border-t border-b border-dashed border-black py-2 mb-2 space-y-1"
+        id="receipt-items"
+      >
+        <!-- Items inserted here -->
+      </div>
+      <div class="space-y-1 text-right">
+        <p>Total: <span id="receipt-total" class="font-bold"></span></p>
+        <p>Bayar: <span id="receipt-cash"></span></p>
+        <p>Kembali: <span id="receipt-change"></span></p>
+      </div>
+      <p class="text-center mt-4 text-[10px]">
+        Terima Kasih Atas Kunjungannya!
+      </p>
+    </div>
+
+    <!-- JavaScript App Logic -->
+    <script>
+      // Menu Data dengan penggabungan Pentol 2k
+      const menuData = [
+        {
+          category: "Variasi Pentol",
+          icon: "circle-dot",
+          items: [
+            {
+              id: "p2k",
+              name: "Pentol 2k (Daging/Urat/Keju/jamur)",
+              price: 2000,
+            },
+            { id: "ptelur", name: "Pentol Telur", price: 3000 },
+            { id: "purt_b", name: "Pentol Urat Besar", price: 5000 },
+            { id: "pori_b", name: "Pentol Original Besar", price: 5000 },
+            { id: "p_pedas", name: "Pentol Pedas (3 biji)", price: 5000 },
+          ],
+        },
+        {
+          category: "Tahu & Bakso",
+          icon: "box",
+          items: [
+            { id: "tahu", name: "Tahu / Tahu Baso", price: 2000 },
+            { id: "tb_jumbo", name: "Tahu Baso Jumbo", price: 4000 },
+            { id: "bakso", name: "Bakso", price: 15000 },
+          ],
+        },
+        {
+          category: "Tambahan & Kuah",
+          icon: "soup",
+          items: [
+            { id: "tetelan", name: "Tetelan", price: 5000 },
+            { id: "indomie", name: "Indomie", price: 5000 },
+            { id: "miegelas", name: "Mie Gelas", price: 3000 },
+            { id: "kuah", name: "Kuah Pedas", price: 3000 },
+            { id: "pangsit", name: "Pangsit", price: 1000 },
+          ],
+        },
+        {
+          category: "Minuman",
+          icon: "cup-soda",
+          items: [
+            { id: "esteh", name: "Es Teh", price: 3000 },
+            { id: "aires", name: "Air Es", price: 2000 },
+          ],
+        },
+      ];
+
+      let cart = {};
+      let salesHistory = JSON.parse(
+        localStorage.getItem("pentol_sales_history") || "[]",
+      );
+
+      // Format Rupiah Helper
+      function formatRupiah(number) {
+        return new Intl.NumberFormat("id-ID", {
+          style: "currency",
+          currency: "IDR",
+          maximumFractionDigits: 0,
+        }).format(number);
+      }
+
+      // Render Menu Cards
+      function renderMenu() {
+        const container = document.getElementById("menu-container");
+        container.innerHTML = "";
+
+        menuData.forEach((cat) => {
+          const catBox = document.createElement("div");
+          catBox.className =
+            "bg-white p-3.5 rounded-2xl border border-amber-200 shadow-sm";
+
+          let itemsHTML = cat.items
+            .map((item) => {
+              const qty = cart[item.id] ? cart[item.id].qty : 0;
+              return `
+            <div class="flex items-center justify-between p-2.5 rounded-xl border border-slate-100 hover:border-amber-300 bg-slate-50/50 transition">
+              <div class="pr-2">
+                <p class="font-bold text-slate-800 text-sm leading-snug">${item.name}</p>
+                <p class="text-amber-700 font-extrabold text-xs mt-0.5">${formatRupiah(item.price)}</p>
+              </div>
+              <div class="flex items-center gap-1">
+                ${
+                  qty > 0
+                    ? `
+                  <button onclick="updateQty('${item.id}', -1)" class="w-8 h-8 rounded-lg bg-red-100 text-red-600 font-bold flex items-center justify-center hover:bg-red-200 touch-btn">-</button>
+                  <span class="w-7 text-center font-black text-sm text-slate-800">${qty}</span>
+                `
+                    : ""
+                }
+                <button onclick="updateQty('${item.id}', 1)" class="px-2.5 h-8 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs flex items-center gap-1 touch-btn">
+                  <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                  <span>+1</span>
+                </button>
+                <button onclick="updateQty('${item.id}', 2)" class="px-2 h-8 rounded-lg bg-amber-100 hover:bg-amber-200 text-amber-800 font-bold text-xs touch-btn">+2</button>
+                <button onclick="updateQty('${item.id}', 5)" class="px-2 h-8 rounded-lg bg-amber-100 hover:bg-amber-200 text-amber-800 font-bold text-xs touch-btn">+5</button>
+              </div>
+            </div>
+          `;
+            })
+            .join("");
+
+          catBox.innerHTML = `
+          <h3 class="font-bold text-xs uppercase tracking-wider text-amber-800 mb-2.5 flex items-center gap-1.5">
+            <i data-lucide="${cat.icon}" class="w-4 h-4 text-amber-600"></i>
+            ${cat.category}
+          </h3>
+          <div class="space-y-2">${itemsHTML}</div>
+        `;
+          container.appendChild(catBox);
+        });
+
+        lucide.createIcons();
+      }
+
+      // Update Quantity in Cart
+      function updateQty(id, delta) {
+        let itemRef = null;
+        menuData.forEach((c) => {
+          const found = c.items.find((i) => i.id === id);
+          if (found) itemRef = found;
+        });
+
+        if (!itemRef) return;
+
+        if (!cart[id]) {
+          cart[id] = { ...itemRef, qty: 0 };
+        }
+
+        cart[id].qty += delta;
+
+        if (cart[id].qty <= 0) {
+          delete cart[id];
+        }
+
+        renderMenu();
+        renderCart();
+      }
+
+      // Render Cart Summary
+      function renderCart() {
+        const cartList = document.getElementById("cart-items-list");
+        const grandTotalEl = document.getElementById("grand-total");
+        const mobileGrandTotalEl =
+          document.getElementById("mobile-grand-total");
+        const totalBadge = document.getElementById("total-items-badge");
+
+        cartList.innerHTML = "";
+        let total = 0;
+        let totalCount = 0;
+
+        const keys = Object.keys(cart);
+
+        if (keys.length === 0) {
+          cartList.innerHTML = `<p class="text-center text-slate-400 text-sm py-8">Belum ada item yang dipilih</p>`;
+        } else {
+          keys.forEach((key) => {
+            const item = cart[key];
+            const subtotal = item.price * item.qty;
+            total += subtotal;
+            totalCount += item.qty;
+
+            const row = document.createElement("div");
+            row.className =
+              "flex justify-between items-center text-xs p-2 bg-slate-50 rounded-lg border border-slate-100";
+            row.innerHTML = `
+            <div class="flex-1 pr-2">
+              <span class="font-bold text-slate-800">${item.name}</span>
+              <div class="text-slate-500 text-[11px]">${item.qty} x ${formatRupiah(item.price)}</div>
+            </div>
+            <div class="text-right">
+              <div class="font-bold text-slate-800">${formatRupiah(subtotal)}</div>
+              <button onclick="removeItem('${key}')" class="text-red-500 hover:text-red-700 text-[10px] underline">Hapus</button>
+            </div>
+          `;
+            cartList.appendChild(row);
+          });
+        }
+
+        grandTotalEl.innerText = formatRupiah(total);
+        mobileGrandTotalEl.innerText = formatRupiah(total);
+        totalBadge.innerText = `${totalCount} item`;
+
+        calculateChange();
+      }
+
+      function removeItem(id) {
+        delete cart[id];
+        renderMenu();
+        renderCart();
+      }
+
+      function resetCart() {
+        cart = {};
+        document.getElementById("cash-input").value = "";
+        renderMenu();
+        renderCart();
+      }
+
+      function calculateChange() {
+        let total = 0;
+        Object.values(cart).forEach((item) => (total += item.price * item.qty));
+
+        const cashInput = document.getElementById("cash-input");
+        const changeDisplay = document.getElementById("change-display");
+
+        const cash = parseFloat(cashInput.value) || 0;
+        const change = cash - total;
+
+        if (cash === 0) {
+          changeDisplay.innerText = "Rp 0";
+          changeDisplay.className = "text-lg text-slate-500 font-extrabold";
+        } else if (change < 0) {
+          changeDisplay.innerText = "Kurang " + formatRupiah(Math.abs(change));
+          changeDisplay.className = "text-lg text-red-600 font-extrabold";
+        } else {
+          changeDisplay.innerText = formatRupiah(change);
+          changeDisplay.className = "text-lg text-emerald-600 font-extrabold";
+        }
+      }
+
+      function setCash(val) {
+        let total = 0;
+        Object.values(cart).forEach((item) => (total += item.price * item.qty));
+
+        if (val === "PAS") {
+          document.getElementById("cash-input").value = total;
+        } else {
+          document.getElementById("cash-input").value = val;
+        }
+        calculateChange();
+      }
+
+      function finishTransaction(shouldPrint) {
+        let total = 0;
+        const itemsArr = Object.values(cart);
+
+        if (itemsArr.length === 0) {
+          alert("Pilih menu terlebih dahulu!");
+          return;
+        }
+
+        itemsArr.forEach((item) => (total += item.price * item.qty));
+        const cash =
+          parseFloat(document.getElementById("cash-input").value) || total;
+
+        if (cash < total) {
+          alert("Uang yang diterima masih kurang!");
+          return;
+        }
+
+        const tx = {
+          id: Date.now(),
+          date: new Date().toLocaleString("id-ID"),
+          items: itemsArr,
+          total: total,
+          cash: cash,
+          change: cash - total,
+        };
+
+        salesHistory.unshift(tx);
+        localStorage.setItem(
+          "pentol_sales_history",
+          JSON.stringify(salesHistory),
+        );
+
+        if (shouldPrint) {
+          printReceipt(tx);
+        } else {
+          alert("Transaksi Selesai! Terima kasih.");
+        }
+
+        resetCart();
+      }
+
+      function printReceipt(tx) {
+        document.getElementById("receipt-date").innerText = tx.date;
+        const receiptItems = document.getElementById("receipt-items");
+        receiptItems.innerHTML = tx.items
+          .map(
+            (i) => `
+        <div class="flex justify-between">
+          <span>${i.name} x${i.qty}</span>
+          <span>${formatRupiah(i.price * i.qty)}</span>
+        </div>
+      `,
+          )
+          .join("");
+
+        document.getElementById("receipt-total").innerText = formatRupiah(
+          tx.total,
+        );
+        document.getElementById("receipt-cash").innerText = formatRupiah(
+          tx.cash,
+        );
+        document.getElementById("receipt-change").innerText = formatRupiah(
+          tx.change,
+        );
+
+        window.print();
+      }
+
+      function toggleHistoryModal() {
+        const modal = document.getElementById("history-modal");
+        modal.classList.toggle("hidden");
+        if (!modal.classList.contains("hidden")) {
+          renderHistory();
+        }
+      }
+
+      function renderHistory() {
+        const historyList = document.getElementById("history-list");
+        const dailyOmsetEl = document.getElementById("daily-omset");
+
+        historyList.innerHTML = "";
+        let totalOmset = 0;
+
+        if (salesHistory.length === 0) {
+          historyList.innerHTML = `<p class="text-center text-slate-400 text-sm py-6">Belum ada transaksi</p>`;
+        } else {
+          salesHistory.forEach((tx) => {
+            totalOmset += tx.total;
+            const card = document.createElement("div");
+            card.className =
+              "bg-slate-50 border border-slate-200 p-3 rounded-xl space-y-1 text-xs";
+            card.innerHTML = `
+            <div class="flex justify-between font-bold text-slate-700">
+              <span>${tx.date}</span>
+              <span class="text-emerald-600">${formatRupiah(tx.total)}</span>
+            </div>
+            <div class="text-slate-500 text-[11px]">
+              ${tx.items.map((i) => `${i.name} (${i.qty})`).join(", ")}
+            </div>
+          `;
+            historyList.appendChild(card);
+          });
+        }
+
+        dailyOmsetEl.innerText = formatRupiah(totalOmset);
+      }
+
+      function clearHistory() {
+        if (
+          confirm("Apakah Anda yakin ingin menghapus semua riwayat transaksi?")
+        ) {
+          salesHistory = [];
+          localStorage.removeItem("pentol_sales_history");
+          renderHistory();
+        }
+      }
+
+      // Initialize App
+      window.onload = () => {
+        renderMenu();
+        renderCart();
+      };
+    </script>
+  </body>
+</html>
